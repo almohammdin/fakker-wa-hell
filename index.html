@@ -235,7 +235,7 @@ async function saveCMS(publish){
 if(cms.busy)return;try{validateCMS(cms.draft)}catch(e){return cmsMessage(e.message)}
 if(publish&&!confirm('نشر المحتوى الحالي لجميع الطلاب على نفس الرابط؟'))return;
 cms.busy=true;cmsMessage('جارٍ الحفظ…');renderCMS();
-try{const payload=clone(cms.draft),expected=cms.revision;const result=await cms.sdk.runTransaction(cms.sdk.ref(cms.db,CMS_PATH),current=>{if((current?.revision||0)!==expected)return;const next={...(current||{}),revision:expected+1,draft:payload,updatedAt:Date.now()};if(publish){next.previous=current?.published||CMS_SEED;next.published=payload}return next},{applyLocally:false});
+try{const payload=clone(cms.draft),expected=cms.revision;const result=await cms.sdk.runTransaction(cms.sdk.ref(cms.db,CMS_PATH),current=>{if(current && (current.revision||0)!==expected)return;const next={...(current||{}),revision:expected+1,draft:payload,updatedAt:Date.now()};if(publish){next.previous=current?.published||CMS_SEED;next.published=payload}return next},{applyLocally:false});
 if(!result.committed)throw Error('توجد نسخة أحدث من جهاز آخر. انسخ تعديلاتك قبل إغلاق اللوحة، ثم أعد فتح الصفحة لتحميلها.');
 cms.revision=expected+1;cms.dirty=false;cms.previous=result.snapshot.val().previous||null;cmsMessage(publish?'تم النشر. التعديلات متاحة الآن للطلاب.':'حُفظت المسودة؛ لم تتغير نسخة الطلاب.');if(publish){applyCMS(payload);quiz=null;go(page)}}catch(e){cmsMessage(e.message||'تعذر الحفظ؛ التعديلات ما زالت في اللوحة')}finally{cms.busy=false;renderCMS()}
 }
