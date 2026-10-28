@@ -562,7 +562,7 @@ async function saveDisplaySettings(){
  cms.busy=true;renderCMS();cmsMessage('جار حفظ خيارات العرض…');
  try{
   const result=await cms.sdk.runTransaction(cms.sdk.ref(cms.db,CMS_PATH),current=>{
-   if((current?.revision||0)!==expected)return;
+   if(current&&(current.revision||0)!==expected)return;
    return {...(current||{}),revision:expected+1,updatedAt:Date.now(),published:{...(current?.published||CMS_SEED),displaySettings:prefs},draft:{...(current?.draft||current?.published||CMS_SEED),displaySettings:prefs}};
   },{applyLocally:false});
   if(!result.committed)throw Error('تغيرت النسخة في جلسة أخرى. خياراتك وتعديلاتك ما زالت في هذه الجلسة؛ أعد فتح الموقع في تبويب آخر لمراجعة النسخة الجديدة.');
