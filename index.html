@@ -306,7 +306,7 @@ if(publish&&!confirm('نشر المحتوى الحالي لجميع الطلاب
 cms.busy=true;cmsMessage('جار الحفظ…');renderCMS();
 try{const payload=clone(cms.draft),expected=cms.revision;const result=await cms.sdk.runTransaction(cms.sdk.ref(cms.db,CMS_PATH),current=>{if(current && (current.revision||0)!==expected)return;const next={...(current||{}),revision:expected+1,draft:payload,updatedAt:Date.now()};if(publish){next.previous=current?.published||CMS_SEED;next.published=payload}return next},{applyLocally:false});
 if(!result.committed)throw Error('توجد نسخة أحدث من جهاز آخر. انسخ تعديلاتك قبل إغلاق اللوحة، ثم أعد فتح الصفحة لتحميلها.');
-cms.revision=expected+1;cms.dirty=false;cms.previous=result.snapshot.val().previous||null;cmsMessage(publish?'تم النشر. التعديلات متاحة الآن للطلاب.':'حفظت المسودة؛ لم تتغير نسخة الطلاب.');if(publish){applyCMS(payload);quiz=null;go(page)}}catch(e){cmsMessage(e.message||'تعذر الحفظ؛ التعديلات ما زالت في اللوحة')}finally{cms.busy=false;renderCMS()}
+cms.revision=expected+1;cms.dirty=false;cms.previous=result.snapshot.val().previous||null;cmsMessage(publish?'تم النشر. التعديلات متاحة الآن للطلاب.':'حفظت المسودة؛ لم تتغير نسخة الطلاب.');if(publish){displayPreview=null;applyCMS(payload);quiz=null;go(page)}}catch(e){cmsMessage(e.message||'تعذر الحفظ؛ التعديلات ما زالت في اللوحة')}finally{cms.busy=false;renderCMS()}
 }
 function restoreCMS(){if(!cms.previous)return cmsMessage('لا توجد نسخة نشر سابقة بعد');if(!confirm('استرجاع النشر السابق إلى المسودة؟ يمكنك مراجعته ثم نشره.'))return;cms.draft=clone(cms.previous);dirtyCMS();renderCMS()}
 document.getElementById('cms-dialog').addEventListener('cancel',e=>{e.preventDefault();closeCMS()});
@@ -411,7 +411,7 @@ const eduIcons={"book":"<path d=\"M12 5v16\" />\n  <path d=\"M20.001 19A2 2 0 00
 function eduIcon(name){return '<svg class="edu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">'+(eduIcons[name]||eduIcons.book)+'</svg>'}
 function eduLoad(name){if(eduLoads[name])return eduLoads[name];const [src,css]=EDU_ASSETS[name];eduLoads[name]=new Promise((resolve,reject)=>{if(css&&!document.querySelector('link[data-edu="'+name+'"]')){const l=document.createElement('link');l.rel='stylesheet';l.href=css;l.dataset.edu=name;document.head.append(l)}const s=document.createElement('script');s.src=src;s.async=true;const timer=setTimeout(()=>{s.remove();delete eduLoads[name];reject(Error('asset timeout'))},12000);s.onload=()=>{clearTimeout(timer);resolve()};s.onerror=()=>{clearTimeout(timer);s.remove();delete eduLoads[name];reject(Error('asset unavailable'))};document.head.append(s)});return eduLoads[name]}
 function eduTex(raw){let t=digits(raw).trim();if(t.includes('\\'))return t;if(t.includes(';'))return '\\begin{cases}'+t.split(';').map(v=>eduTex(v)).join('\\\\')+'\\end{cases}';t=t.replace(/\{/g,'\\{').replace(/\}/g,'\\}').replace(/−/g,'-').replace(/×/g,'\\times ').replace(/÷/g,'\\div ').replace(/≤/g,'\\le ').replace(/≥/g,'\\ge ');return t.replace(/\(([^()]+)\)\s*\/\s*\(([^()]+)\)/g,'\\frac{$1}{$2}').replace(/(-?\d+)\s*\/\s*(\d+)/g,'\\frac{$1}{$2}')}
-async function eduMath(scope=document){try{await eduLoad('katex')}catch{return}if(!window.katex)return;scope.querySelectorAll('.math:not([data-typeset]),[data-tex]:not([data-typeset])').forEach(el=>{const raw=el.dataset.tex||el.textContent;try{window.katex.render(eduTex(raw),el,{throwOnError:true,trust:false,strict:'ignore',output:'htmlAndMathml',displayMode:el.classList.contains('math')});el.dataset.typeset='true'}catch{/* Preserve readable original for non-mathematical prose. */}})}
+async function eduMath(scope=document){scope.querySelectorAll('.math:not([data-typeset]),[data-tex]:not([data-typeset])').forEach(el=>{el.dataset.mathSource??=el.dataset.tex??el.textContent;el.textContent=displayNumbers(displayVariables(el.dataset.mathSource))});try{await eduLoad('katex')}catch{return}if(!window.katex)return;scope.querySelectorAll('.math:not([data-typeset]),[data-tex]:not([data-typeset])').forEach(el=>{const raw=el.dataset.mathSource??el.dataset.tex??el.textContent;el.dataset.mathSource=raw;try{window.katex.render(eduTex(raw),el,{throwOnError:true,trust:false,strict:'ignore',output:'htmlAndMathml',displayMode:el.classList.contains('math')});el.dataset.typeset='true'}catch{/* Preserve readable original for non-mathematical prose. */}})}
 function eduDecorate(scope=document){scope.querySelectorAll('button:not([data-edu-icon])').forEach(b=>{if(b.closest('#cms-dialog')||b.classList.contains('option')||b.classList.contains('cms-entry')||b.querySelector('.edu-icon'))return;const t=b.textContent;const name=/طباعة|ورقة العمل|PDF/.test(t)?'printer':/تلميح|اكشف/.test(t)?'lightbulb':/تدرب|تدرب|تدريب|حل تدريب/.test(t)?'pen':/تقدم|تقدمي|مختبر/.test(t)?'chart':/الرئيسية/.test(t)?'home':/التالي|التالية/.test(t)?'arrow':/قراءة|دروس|الفصول|دليل/.test(t)?'book':null;if(name){b.insertAdjacentHTML('afterbegin',eduIcon(name));b.dataset.eduIcon='1'}});eduMath(scope)}
 function eduCleanup(){eduLabEpoch++;if(eduBoard){try{window.JXG.JSXGraph.freeBoard(eduBoard)}catch{}eduBoard=null}if(eduAnnotation){eduAnnotation.remove();eduAnnotation=null}}
 function eduStepsHTML(l){return '<div class="example edu-example"><span class="tag">'+eduIcon('lightbulb')+'فكر قبل أن تكشف</span><h3>مثال، خطوة بخطوة</h3><div class="math">'+esc(l.fields[4])+'</div><div id="edu-step-track" class="step-track" aria-hidden="true"></div><div class="step-panel"><div id="edu-step-count" class="step-kicker"></div><p id="edu-step-prompt" class="step-prompt"></p><label class="small" for="edu-reflection">توقع الخطوة بكلماتك — اختياري، لا يصحح آليا ولا يحفظ</label><textarea id="edu-reflection" class="step-reflection" rows="2" placeholder="ما العملية المناسبة؟ ولماذا؟"></textarea><div id="edu-step-answer" class="step-reveal" aria-live="polite"></div><div class="step-controls"><button id="edu-reveal" onclick="eduReveal()">'+eduIcon('lightbulb')+'اكشف الخطوة وتفسيرها</button><button id="edu-next" class="gold" onclick="eduMove(1)">الخطوة التالية</button><button id="edu-prev" class="muted-btn" onclick="eduMove(-1)">الخطوة السابقة</button><button class="muted-btn" onclick="eduRestart()">'+eduIcon('rotate')+'ابدأ من جديد</button></div></div><details><summary>عرض الحل كاملا للمراجعة</summary><ol>'+l.fields[5].map(s=>'<li>'+esc(s)+'</li>').join('')+'</ol></details></div>'}
@@ -535,18 +535,47 @@ renderSubmissions=function(){
 
 // Display preferences are part of the versioned teacher draft and published content.
 function normalizeDisplay(p={}){return {numbers:p.numbers==='arab'?'arab':'latn',variables:p.variables==='arabic'?'arabic':'latin',calendar:['hijri','both'].includes(p.calendar)?p.calendar:'gregorian'}}
-function displayPrefs(){return normalizeDisplay(cms.published?.displaySettings)}
+let displayPreview=null,displayDraftWasDirty=false,displayDraftContent='';
+const displayDates=new Map();
+function displayPrefs(){return normalizeDisplay(displayPreview||cms.published?.displaySettings)}
 function displayNumbers(text,p=displayPrefs()){const s=digits(text);return p.numbers==='arab'?s.replace(/[0-9]/g,n=>'٠١٢٣٤٥٦٧٨٩'[Number(n)]):s}
-function displayVariables(text,p=displayPrefs()){return p.variables==='arabic'?String(text).replace(/(?<![A-Za-z\\])[xyz](?![A-Za-z])/g,c=>({x:'س',y:'ص',z:'ع'}[c])):String(text)}
+function displayVariables(text,p=displayPrefs()){return p.variables==='arabic'?String(text).replace(/(?<![A-Za-z\\])[xyz](?![A-Za-z])/g,c=>({x:'س',y:'ص',z:'ع'}[c])):String(text).replace(/(?<![\p{L}\p{M}])[سصع](?![\p{L}\p{M}])/gu,c=>({س:'x',ص:'y',ع:'z'}[c]))}
 function displayDate(value,withTime=false,p=displayPrefs()){
  let d;if(typeof value==='string'&&/^\d{2}\/\d{2}\/\d{4}$/.test(value)){const [day,month,year]=value.split('/').map(Number);d=new Date(year,month-1,day)}else d=new Date(value);
  if(!Number.isFinite(d.getTime()))return displayNumbers(value,p);
  const one=calendar=>new Intl.DateTimeFormat('ar-SA',{calendar,numberingSystem:p.numbers,year:'numeric',month:'long',day:'numeric',...(withTime?{hour:'2-digit',minute:'2-digit'}:{})}).format(d).replace(/\s*هـ/g,'');
- return p.calendar==='both'?one('islamic-umalqura')+' هـ — '+one('gregory')+' م':p.calendar==='hijri'?one('islamic-umalqura')+' هـ':one('gregory')+' م';
+ const shown=p.calendar==='both'?one('islamic-umalqura')+' هـ — '+one('gregory')+' م':p.calendar==='hijri'?one('islamic-umalqura')+' هـ':one('gregory')+' م';
+ displayDates.set(shown,{value,withTime});return shown;
 }
-function displaySettingsHTML(){const p=normalizeDisplay(cms.draft.displaySettings);const select=(key,label,options)=>'<label>'+label+'<select onchange="changeDisplaySetting(\''+key+'\',this.value)" '+(cms.busy?'disabled':'')+'>'+options.map(([v,t])=>'<option value="'+v+'" '+(p[key]===v?'selected':'')+'>'+t+'</option>').join('')+'</select></label>';return '<details class="display-settings" open><summary>خيارات العرض</summary><div class="grid">'+select('numbers','شكل الأرقام',[['arab','أرقام عربية (هندية): ١٢٣'],['latn','أرقام عربية (إنجليزية): 123']])+select('variables','رموز المتغيرات في الأمثلة',[['arabic','حروف عربية: س، ص، ع'],['latin','حروف إنجليزية: x، y، z']])+select('calendar','التاريخ',[['hijri','هجري'],['gregorian','ميلادي'],['both','هجري وميلادي']])+'</div><div id="display-settings-preview" class="note" aria-live="polite"></div><p class="small">احفظ المسودة للاحتفاظ بالخيارات، ثم اضغط «نشر للطلاب» لتطبيقها على الموقع والطباعة. تبقى الإجابات المسلمة بنصها الأصلي.</p></details>'}
+function displaySettingsHTML(){const p=normalizeDisplay(cms.draft.displaySettings);const select=(key,label,options)=>'<label>'+label+'<select onchange="changeDisplaySetting(\''+key+'\',this.value)" '+(cms.busy?'disabled':'')+'>'+options.map(([v,t])=>'<option value="'+v+'" '+(p[key]===v?'selected':'')+'>'+t+'</option>').join('')+'</select></label>';return '<details class="display-settings" open><summary>خيارات العرض</summary><div class="grid">'+select('numbers','شكل الأرقام',[['arab','أرقام عربية (هندية): ١٢٣'],['latn','أرقام عربية (إنجليزية): 123']])+select('variables','رموز المتغيرات في الأمثلة',[['arabic','حروف عربية: س، ص، ع'],['latin','حروف إنجليزية: x، y، z']])+select('calendar','التاريخ',[['hijri','هجري'],['gregorian','ميلادي'],['both','هجري وميلادي']])+'</div><div id="display-settings-preview" class="note" aria-live="polite"></div><button type="button" onclick="saveDisplaySettings()" '+(cms.busy?'disabled':'')+'>تطبيق وحفظ خيارات العرض</button><p class="small">تتغير المعاينة فور اختيارك. زر تطبيق وحفظ خيارات العرض يثبتها للجميع وبعد تحديث الصفحة، دون نشر تعديلات المحتوى. تبقى الإجابات المسلمة بنصها الأصلي.</p></details>'}
 function previewDisplaySettings(){const el=document.getElementById('display-settings-preview');if(!el)return;const p=normalizeDisplay(cms.draft.displaySettings);el.textContent='معاينة: '+displayNumbers(displayVariables('x + 2 = 5 • y = 3x',p),p)+' | '+displayDate(Date.now(),false,p)}
-function changeDisplaySetting(key,value){if(!['numbers','variables','calendar'].includes(key)||cms.busy)return;cms.draft.displaySettings=normalizeDisplay({...cms.draft.displaySettings,[key]:value});dirtyCMS();previewDisplaySettings()}
+function displayContent(draft){const {displaySettings,...content}=draft;return JSON.stringify(content)}
+function changeDisplaySetting(key,value){
+ if(!['numbers','variables','calendar'].includes(key)||cms.busy)return;
+ if(!displayPreview){displayDraftWasDirty=cms.dirty;displayDraftContent=displayContent(cms.draft)}
+ cms.draft.displaySettings=normalizeDisplay({...cms.draft.displaySettings,[key]:value});displayPreview=cms.draft.displaySettings;
+ dirtyCMS();previewDisplaySettings();refreshDisplay();cmsMessage('معاينة العرض مطبقة الآن. اضغط «تطبيق وحفظ خيارات العرض» لتثبيتها للجميع وبعد التحديث.');
+}
+async function saveDisplaySettings(){
+ if(cms.busy||!cms.allowed)return;const prefs=normalizeDisplay(cms.draft.displaySettings),expected=cms.revision;
+ const contentDirty=displayPreview?(displayDraftWasDirty||displayContent(cms.draft)!==displayDraftContent):cms.dirty;
+ cms.busy=true;renderCMS();cmsMessage('جار حفظ خيارات العرض…');
+ try{
+  const result=await cms.sdk.runTransaction(cms.sdk.ref(cms.db,CMS_PATH),current=>{
+   if((current?.revision||0)!==expected)return;
+   return {...(current||{}),revision:expected+1,updatedAt:Date.now(),published:{...(current?.published||CMS_SEED),displaySettings:prefs},draft:{...(current?.draft||current?.published||CMS_SEED),displaySettings:prefs}};
+  },{applyLocally:false});
+  if(!result.committed)throw Error('تغيرت النسخة في جلسة أخرى. خياراتك وتعديلاتك ما زالت في هذه الجلسة؛ أعد فتح الموقع في تبويب آخر لمراجعة النسخة الجديدة.');
+  cms.revision=expected+1;cms.published.displaySettings=prefs;displayPreview=null;cms.dirty=contentDirty;refreshDisplay();
+  cmsMessage('تم تطبيق خيارات العرض وحفظها للجميع. لم تنشر تعديلات الدروس أو الأسئلة.');
+ }catch(e){cmsMessage(e.message||'تعذر حفظ خيارات العرض. المعاينة ما زالت متاحة؛ أعد المحاولة.')}finally{cms.busy=false;renderCMS()}
+}
+function refreshDisplay(){
+ applyDisplayText();document.querySelectorAll('[data-math-source]').forEach(el=>{delete el.dataset.typeset;el.textContent=displayNumbers(displayVariables(el.dataset.mathSource))});eduMath();
+ let style=document.getElementById('display-print-numbers');if(!style){style=document.createElement('style');style.id='display-print-numbers';document.head.append(style)}
+ const counterStyle=displayPrefs().numbers==='arab'?'arabic-indic':'decimal';
+ style.textContent='ol { list-style-type: '+counterStyle+'; } @page { @bottom-left { content: "صفحة " counter(page, '+counterStyle+') " / " counter(pages, '+counterStyle+'); } }';
+}
 const displayRenderCMSBase=renderCMS;
 renderCMS=function(){displayRenderCMSBase();const actions=document.querySelector('#cms-body .cms-actions');if(actions){actions.insertAdjacentHTML('afterend',displaySettingsHTML());previewDisplaySettings()}};
 const displayTextSources=new WeakMap();
@@ -555,13 +584,14 @@ function applyDisplayText(scope=document.body){
  while(node=walker.nextNode()){
   const parent=node.parentElement;if(!parent||parent.closest('script,style,textarea,input,select,[contenteditable],.math,[data-tex],.katex,#cms-editor,.display-settings,.review-answer,.review-box .preserve'))continue;
   const old=displayTextSources.get(node),raw=old&&old.shown===node.data?old.raw:node.data;
-  const shown=displayNumbers(displayVariables(raw));displayTextSources.set(node,{raw,shown});if(node.data!==shown)node.data=shown;
+  let dated=raw;for(const [source,date] of [...displayDates].sort((a,b)=>b[0].length-a[0].length)){if(dated.includes(source)){dated=dated.replaceAll(source,displayDate(date.value,date.withTime));break}}
+  const shown=displayNumbers(displayVariables(dated));displayTextSources.set(node,{raw,shown});if(node.data!==shown)node.data=shown;
  }
 }
 const displayEduTexBase=eduTex;
-eduTex=function(raw){const tex=displayEduTexBase(raw),p=displayPrefs();return tex.replace(/\\[A-Za-z]+|[xyz]|[0-9]/g,token=>{if(token.startsWith('\\'))return token;if(/[xyz]/.test(token)&&p.variables==='arabic')return '\\text{'+({x:'س',y:'ص',z:'ع'}[token])+'}';if(/[0-9]/.test(token)&&p.numbers==='arab')return '\\text{'+displayNumbers(token,p)+'}';return token})};
+eduTex=function(raw){if(!String(raw).includes('\\')&&String(raw).includes(';'))return '\\begin{cases}'+String(raw).split(';').map(v=>eduTex(v)).join('\\\\')+'\\end{cases}';const tex=displayEduTexBase(raw),p=displayPrefs();return tex.replace(/\\[A-Za-z]+|[A-Za-z]+|[سصع]|[0-9]/g,token=>{if(token.startsWith('\\'))return token;if(/^[xyzسصع]$/.test(token)){const latin=({س:'x',ص:'y',ع:'z'}[token])||token;return p.variables==='arabic'?'\\text{'+({x:'س',y:'ص',z:'ع'}[latin])+'}':latin}if(/^[0-9]$/.test(token)&&p.numbers==='arab')return '\\text{'+displayNumbers(token,p)+'}';return token})};
 const displayApplyCMSBase=applyCMS;
-applyCMS=function(raw){displayApplyCMSBase(raw);if(typeof document!=='undefined'&&document.body){applyDisplayText();let style=document.getElementById('display-print-numbers');if(!style){style=document.createElement('style');style.id='display-print-numbers';document.head.append(style)}const counterStyle=displayPrefs().numbers==='arab'?'arabic-indic':'decimal';style.textContent='@page { @bottom-left { content: "صفحة " counter(page, '+counterStyle+') " / " counter(pages, '+counterStyle+'); } }'}};
+applyCMS=function(raw){displayApplyCMSBase(raw);if(typeof document!=='undefined'&&document.body)refreshDisplay()};
 const displayPrintBase=printReady;
 printReady=async function(){applyDisplayText(document.getElementById('paper'));return displayPrintBase()};
 const displayObserver=new MutationObserver(()=>applyDisplayText());
