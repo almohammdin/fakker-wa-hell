@@ -1,0 +1,135 @@
+{
+  "rules": {
+    "workspaces": {
+      "noura-master": {
+        ".read": "auth != null && auth.uid === 'BsXfHso0lmduiyjZk35Mfs5cVst1'",
+        ".write": "auth != null && auth.uid === 'BsXfHso0lmduiyjZk35Mfs5cVst1'"
+      }
+    },
+    "fakkerWaHall": {
+      "content": {
+        ".read": "auth != null && auth.token.email_verified === true && auth.token.firebase.sign_in_provider === 'google.com' && (auth.token.email.toLowerCase() === 'almohammdin@gmail.com' || auth.token.email.toLowerCase() === 'hameed123136@gmail.com')",
+        ".write": "auth != null && auth.token.email_verified === true && auth.token.firebase.sign_in_provider === 'google.com' && (auth.token.email.toLowerCase() === 'almohammdin@gmail.com' || auth.token.email.toLowerCase() === 'hameed123136@gmail.com')",
+        ".validate": "newData.hasChildren(['revision','draft']) && newData.child('revision').isNumber()",
+        "published": {
+          ".read": true
+        }
+      },
+      "assets": {
+        "$asset": {
+          ".read": true,
+          ".write": "auth != null && auth.token.email_verified === true && auth.token.firebase.sign_in_provider === 'google.com' && (auth.token.email.toLowerCase() === 'almohammdin@gmail.com' || auth.token.email.toLowerCase() === 'hameed123136@gmail.com')",
+          ".validate": "newData.isString() && newData.val().length < 450000 && newData.val().matches(/^data:image\\/(webp|png|jpeg);base64,[A-Za-z0-9+\\/=]+$/)"
+        }
+      },
+      "submissionSettings": {
+        ".read": true,
+        ".write": "auth != null && auth.token.email_verified === true && auth.token.firebase.sign_in_provider === 'google.com' && (auth.token.email.toLowerCase() === 'almohammdin@gmail.com' || auth.token.email.toLowerCase() === 'hameed123136@gmail.com')",
+        ".validate": "newData.hasChildren(['years','lessons'])",
+        "years": {
+          "$year": {
+            ".validate": "newData.hasChildren(['label','open','createdAt','classes'])",
+            "label": {
+              ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 60"
+            },
+            "open": {
+              ".validate": "newData.isBoolean()"
+            },
+            "createdAt": {
+              ".validate": "newData.isNumber()"
+            },
+            "classes": {
+              "$class": {
+                ".validate": "newData.hasChildren(['label'])",
+                "label": {
+                  ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 60"
+                },
+                "$other": {
+                  ".validate": false
+                }
+              }
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "lessons": {
+          "$lesson": {
+            ".validate": "newData.val() === true && $lesson.matches(/^[a-zA-Z0-9_-]{1,80}$/)"
+          }
+        },
+        "$other": {
+          ".validate": false
+        }
+      },
+      "submissionYears": {
+        ".read": "auth != null && auth.token.email_verified === true && auth.token.firebase.sign_in_provider === 'google.com' && (auth.token.email.toLowerCase() === 'almohammdin@gmail.com' || auth.token.email.toLowerCase() === 'hameed123136@gmail.com')",
+        "$year": {
+          ".write": "auth != null && auth.token.email_verified === true && auth.token.firebase.sign_in_provider === 'google.com' && (auth.token.email.toLowerCase() === 'almohammdin@gmail.com' || auth.token.email.toLowerCase() === 'hameed123136@gmail.com')",
+          "$uid": {
+            ".read": "auth != null && auth.uid === $uid && auth.token.firebase.sign_in_provider === 'anonymous'",
+            "$lesson": {
+              ".validate": "newData.hasChildren(['answer'])",
+              "answer": {
+                ".write": "auth != null && auth.uid === $uid && auth.token.firebase.sign_in_provider === 'anonymous' && newData.exists() && root.child('fakkerWaHall/submissionSettings/years').child($year).child('open').val() === true && root.child('fakkerWaHall/submissionSettings/lessons').child($lesson).val() === true && (!data.exists() || (data.parent().child('review/status').val() === 'revision' && data.child('submittedAt').val() <= data.parent().child('review/reviewedAt').val())) && newData.child('submittedAt').val() === now",
+                ".validate": "newData.hasChildren(['studentName','classId','lessonTitle','reasonPrompt','createPrompt','reasonAnswer','createAnswer','createdAt','submittedAt'])",
+                "studentName": {
+                  ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 100"
+                },
+                "classId": {
+                  ".validate": "newData.isString() && root.child('fakkerWaHall/submissionSettings/years').child($year).child('classes').child(newData.val()).exists() && (!data.exists() || newData.val() === data.val() || (auth != null && auth.token.email_verified === true && auth.token.firebase.sign_in_provider === 'google.com' && (auth.token.email.toLowerCase() === 'almohammdin@gmail.com' || auth.token.email.toLowerCase() === 'hameed123136@gmail.com')))"
+                },
+                "lessonTitle": {
+                  ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 200"
+                },
+                "reasonPrompt": {
+                  ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 2000"
+                },
+                "createPrompt": {
+                  ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 2000"
+                },
+                "reasonAnswer": {
+                  ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 6000"
+                },
+                "createAnswer": {
+                  ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 6000"
+                },
+                "createdAt": {
+                  ".validate": "newData.isNumber() && ((!data.exists() && newData.val() === now) || (data.exists() && newData.val() === data.val()))"
+                },
+                "submittedAt": {
+                  ".validate": "newData.isNumber() && (newData.val() === now || (data.exists() && newData.val() === data.val()))"
+                },
+                "$other": {
+                  ".validate": false
+                }
+              },
+              "review": {
+                ".validate": "newData.hasChildren(['status','score','note','reviewedAt'])",
+                "status": {
+                  ".validate": "newData.val() === 'reviewed' || newData.val() === 'revision'"
+                },
+                "score": {
+                  ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 8 && newData.val() % 1 === 0"
+                },
+                "note": {
+                  ".validate": "newData.isString() && newData.val().length >= 0 && newData.val().length <= 4000"
+                },
+                "reviewedAt": {
+                  ".validate": "newData.isNumber() && (newData.val() === now || (data.exists() && newData.val() === data.val()))"
+                },
+                "$other": {
+                  ".validate": false
+                }
+              },
+              "$other": {
+                ".validate": false
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
